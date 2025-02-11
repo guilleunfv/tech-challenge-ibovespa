@@ -5,4 +5,5 @@ matplotlib==3.9.3
 yfinance==0.2.52
 statsmodels==0.14.2  # Para ARIMA
 scikit-learn==1.5.2  # Para métricas como MAE y RMSE
-pmdarima==2.0.4  # Versión más reciente de pmdarima
+pmdarima==2.0.3
+  # Versión más reciente de pmdarima
