@@ -1,0 +1,6 @@
+streamlit
+pandas
+google-cloud-storage
+scikit-learn
+tensorflow
+matplotlib
