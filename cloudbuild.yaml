@@ -3,5 +3,4 @@ steps:
   args: ['build', '-t', 'us-central1-docker.pkg.dev/tech-challenge-ibovespa-new/ibovespa-repo/ibovespa-data-updater:latest', '.']
 images:
 - 'us-central1-docker.pkg.dev/tech-challenge-ibovespa-new/ibovespa-repo/ibovespa-data-updater:latest'
-options:
-  logsBucket: 'gs://ibovespa-data-updater-logs'
+logsBucket: 'gs://ibovespa-data-updater-logs'
