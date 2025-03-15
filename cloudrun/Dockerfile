@@ -4,9 +4,12 @@ WORKDIR /app
 
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install gunicorn  # Añade Gunicorn
 
-COPY main.py .
+COPY app.py .
 
 ENV BUCKET_NAME=""
 
-CMD ["python", "main.py"]
+EXPOSE 8080 # Importante para que Cloud Run saiba a porta
+
+CMD ["gunicorn", "--bind", "0.0.0.0:8080", "app:app"]
