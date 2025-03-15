@@ -3,16 +3,21 @@ import io
 import os
 from google.cloud import storage
 from google.cloud import bigquery
-import yfinance as yf  # Importa yfinance
+import yfinance as yf
 from flask import Flask
 import logging
 
 app = Flask(__name__)
 
-print("¡Este es un cambio de prueba!")
-# Configura logging (opcional, pero recomendado)
 logging.basicConfig(level=logging.INFO,
                     format='%(asctime)s - %(levelname)s - %(message)s')
+
+# Substitua com o ID do seu projeto e o ID da tabela
+PROJECT_ID = "tech-challenge-ibovespa-new"
+DATASET_ID = "ibovespa_dataset"
+TABLE_ID = "ibovespa_table"
+TABLE_URI = f"{PROJECT_ID}.{DATASET_ID}.{TABLE_ID}"
+
 
 @app.route("/", methods=['GET'])
 def atualizar_dados_ibovespa():
@@ -74,9 +79,9 @@ def atualizar_dados_ibovespa():
         csv_buffer = io.StringIO()
         df.to_csv(csv_buffer, index=False)
         blob.upload_from_string(csv_buffer.getvalue(), content_type="text/csv")
-        logging.info(f"Arquivo ibovespa_data.csv subido con éxito al bucket: gs://{bucket_name}.")
+        logging.info(f"Archivo ibovespa_data.csv subido con éxito al bucket: gs://{bucket_name}.")
 
-        return f"Arquivo ibovespa_data.csv actualizado con éxito en gs://{bucket_name} e datos inseridos no BigQuery."
+        return f"Archivo ibovespa_data.csv actualizado con éxito en gs://{bucket_name} e datos inseridos no BigQuery."
 
     except Exception as e:
         logging.error(f"Error durante la ejecución: {e}")
