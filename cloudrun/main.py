@@ -8,6 +8,7 @@ import logging
 
 app = Flask(__name__)
 
+print("¡Este es un cambio de prueba!")
 # Configura logging (opcional, pero recomendado)
 logging.basicConfig(level=logging.INFO,
                     format='%(asctime)s - %(levelname)s - %(message)s')
