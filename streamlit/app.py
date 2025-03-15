@@ -1,7 +1,5 @@
 import streamlit as st
 import pandas as pd
-from google.cloud import storage
-import io
 from sklearn.preprocessing import MinMaxScaler
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import LSTM, Dense, Dropout
@@ -10,30 +8,27 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 # Configurações
-BUCKET_NAME = "ibovespa-data-tech-challenge"  # Substitua pelo nome do seu bucket
-FILE_PATH = "ibovespa/ibovespa_data.csv"  # Caminho para o arquivo no bucket
+CSV_URL = "https://storage.googleapis.com/ibovespa-data-tech-challenge/ibovespa/ibovespa_data.csv"
 
 @st.cache_data
 def obter_dados_ibovespa():
-    """Carrega os dados do IBOVESPA do Google Cloud Storage."""
+    """Carrega os dados do IBOVESPA diretamente do URL público."""
     try:
-        storage_client = storage.Client()
-        bucket = storage_client.bucket(BUCKET_NAME)
-        blob = bucket.blob(FILE_PATH)
-        csv_data = blob.download_as_string()
-        df = pd.read_csv(io.BytesIO(csv_data))
+        # Define o formato das colunas (fixed-width)
+        # Alterado para usar separador de vírgula e ignorar a segunda linha
+        df = pd.read_csv(CSV_URL, skiprows=[1])
 
-        # Converte la columna 'Último' a numérico, maneja los errores
-        if not pd.api.types.is_numeric_dtype(df['Último']):
-            df['Último'] = pd.to_numeric(df['Último'].astype(str).str.replace('.', '', regex=False).str.replace(',', '.', regex=False), errors='coerce')
-        df = df.dropna(subset=['Último'])
+        # Converte a coluna 'Date' para datetime e define como índice
+        df['Date'] = pd.to_datetime(df['Date'], format='%Y-%m-%d', errors='coerce')
+        df = df.set_index('Date')
 
-        # Convierte la columna 'Data' a datetime y establece como índice
-        df['Data'] = pd.to_datetime(df['Data'])
-        df = df.set_index('Data')
+        # Renomeia as colunas para corresponder ao código subsequente
+        df.rename(columns={'Close': 'Último', 'High': 'Máxima', 'Low': 'Mínima', 'Open': 'Abertura', 'Volume': 'Volume'}, inplace=True)
+
+
         return df
     except Exception as e:
-        st.error(f"Erro ao carregar os dados do Google Cloud Storage: {e}")
+        st.error(f"Erro ao carregar os dados do URL público: {e}")
         return None
 
 def criar_modelo_lstm(df):
@@ -48,20 +43,20 @@ def criar_modelo_lstm(df):
     scaler = MinMaxScaler(feature_range=(0, 1))
     data_scaled = scaler.fit_transform(data)
 
-    # Divide los datos en conjuntos de entrenamiento y prueba
+    # Divide os dados em conjuntos de treinamento e teste
     train_size = int(len(data_scaled) * 0.7)
     train_data = data_scaled[:train_size]
     test_data = data_scaled[train_size:]
 
-    # Define el look_back
+    # Define o look_back
     look_back = min(30, len(test_data) - 1)
 
-    # Verifica si el look_back es válido
+    # Verifica se o look_back é válido
     if look_back <= 0:
         st.error("Erro: Dados de teste insuficientes para o look_back definido. Ajuste o look_back ou carregue mais dados.")
         return
 
-    # Funciona para crear la set de datos
+    # Função para criar o dataset
     def create_dataset(dataset, look_back=1):
         X, Y = [], []
         for i in range(len(dataset) - look_back - 1):
@@ -72,7 +67,7 @@ def criar_modelo_lstm(df):
     X_train, Y_train = create_dataset(train_data, look_back)
     X_test, Y_test = create_dataset(test_data, look_back)
 
-    # Redimensiona os dados para el formato 3D
+    # Redimensiona os dados para o formato 3D
     X_train = np.reshape(X_train, (X_train.shape[0], X_train.shape[1], 1))
     X_test = np.reshape(X_test, (X_test.shape[0], X_test.shape[1], 1))
 
@@ -87,20 +82,20 @@ def criar_modelo_lstm(df):
     model.add(Dense(1))
     model.compile(loss='mean_squared_error', optimizer='adam')
 
-    # Entrenar
+    # Treina o modelo
     model.fit(X_train, Y_train, epochs=300, batch_size=16, verbose=0)
 
-    # Prdecir
+    # Faz as previsões
     train_predict = model.predict(X_train)
     test_predict = model.predict(X_test)
 
-    # Inverse
+    # Inverte a normalização
     train_predict = scaler.inverse_transform(train_predict)
     Y_train = scaler.inverse_transform([Y_train])
-    test_predict = scaler.inverse_transform(test_predict)
+    test_predict = scaler.inverse_transform(test_data)
     Y_test = scaler.inverse_transform([Y_test])
 
-    # Avaliar
+    # Avalia o modelo
     train_rmse = np.sqrt(mean_squared_error(Y_train[0], train_predict[:, 0]))
     test_rmse = np.sqrt(mean_squared_error(Y_test[0], test_predict[:, 0]))
     r2 = r2_score(Y_test[0], test_predict[:, 0])
@@ -133,15 +128,16 @@ def criar_modelo_lstm(df):
 
     return accuracy, fig
 
-# Llama a la función para obter los dados del bucket
+# Chama a função para obter os dados do URL público
 data = obter_dados_ibovespa()
 
-# Llamar a la función
+# Executa o modelo LSTM
 if data is not None:
     criar_modelo_lstm(data)
 else:
     st.write("Ocorreu um erro ao carregar os dados.")
 
+# Informações adicionais na barra lateral
 st.sidebar.header("Sobre o Projeto")
 st.sidebar.info(
     "Este projeto tem como objetivo realizar a previsão do índice IBOVESPA utilizando dados históricos e um modelo de séries temporais. "
@@ -152,10 +148,8 @@ st.sidebar.header("Integrantes")
 st.sidebar.info(
     """
     - Rosicleia Cavalcante Mota
-    - Nathalia Dias Araujo
     - Guillermo Jesus Camahuali Privat
     - Kelly Priscilla Matos Campos
-    - José Victor Barros de Lima
     """
 )
 
