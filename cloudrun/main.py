@@ -2,8 +2,9 @@ import pandas as pd
 import io
 import os
 from google.cloud import storage
+from google.cloud import bigquery
 import yfinance as yf  # Importa yfinance
-from flask import Flask, request
+from flask import Flask
 import logging
 
 app = Flask(__name__)
@@ -15,7 +16,7 @@ logging.basicConfig(level=logging.INFO,
 
 @app.route("/", methods=['GET'])
 def atualizar_dados_ibovespa():
-    """Baixa os dados do IBOVESPA do yfinance e salva no Google Cloud Storage."""
+    """Baixa os dados do IBOVESPA do yfinance, salva no Google Cloud Storage e insere no BigQuery."""
     try:
         logging.info("Iniciando la función atualizar_dados_ibovespa...")
 
@@ -35,31 +36,53 @@ def atualizar_dados_ibovespa():
         blob = bucket.blob("ibovespa/ibovespa_data.csv")  # Nombre del archivo en el bucket
         logging.info("Blob configurado: ibovespa/ibovespa_data.csv")
 
-        # Descargar datos del IBOVESPA usando yfinance
+        # Configurações do BigQuery
+        PROJECT_ID = "tech-challenge-ibovespa-new"  # Substitua pelo seu ID do projeto
+        DATASET_ID = "ibovespa_dataset"
+        TABLE_ID = "ibovespa_table"
+        TABLE_URI = f"{PROJECT_ID}.{DATASET_ID}.{TABLE_ID}"
+
+        # Inicializa o cliente BigQuery
+        client = bigquery.Client()
+        logging.info("Conectado ao BigQuery.")
+
+        # Descargar dados do IBOVESPA usando yfinance
         ticker = "^BVSP"
         logging.info(f"Descargando datos del ticker: {ticker}")
         data = yf.download(ticker, period="10y", interval="1d")
+
         if data.empty:
             logging.error("No se pudieron descargar datos del IBOVESPA.")
             return "Error: No se pudieron descargar datos del IBOVESPA.", 500
 
         data.reset_index(inplace=True)
-        data['Date'] = pd.to_datetime(data['Date']).dt.strftime('%Y-%m-%d')  # Formatear fechas
+        data['Date'] = pd.to_datetime(data['Date']).dt.strftime('%Y-%m-%d')  # Formatar datas
+        df = data[["Date", "Open", "High", "Low", "Close", "Volume"]]
+
         logging.info("Datos descargados y formateados correctamente.")
 
-        # Guardar los datos en Google Cloud Storage
-        csv_buffer = io.StringIO()
-        data.to_csv(csv_buffer, index=False)
-        blob.upload_from_string(csv_buffer.getvalue(), content_type="text/csv")
-        logging.info(f"Archivo ibovespa_data.csv subido con éxito al bucket: gs://{bucket_name}.")
+        # Inserir os dados no BigQuery
+        data_records = df.to_dict(orient='records')
+        table = client.get_table(TABLE_URI)  # Use TABLE_URI aqui
+        errors = client.insert_rows(table, data_records)
+        if errors == []:
+            logging.info("Dados inseridos com sucesso no BigQuery.")
+        else:
+            logging.error(f"Ocorreram erros ao inserir dados no BigQuery: {errors}")
 
-        return f"Archivo ibovespa_data.csv actualizado con éxito en gs://{bucket_name}."
+        # Guardar os dados em Google Cloud Storage
+        csv_buffer = io.StringIO()
+        df.to_csv(csv_buffer, index=False)
+        blob.upload_from_string(csv_buffer.getvalue(), content_type="text/csv")
+        logging.info(f"Arquivo ibovespa_data.csv subido con éxito al bucket: gs://{bucket_name}.")
+
+        return f"Arquivo ibovespa_data.csv actualizado con éxito en gs://{bucket_name} e datos inseridos no BigQuery."
 
     except Exception as e:
         logging.error(f"Error durante la ejecución: {e}")
         return f"Error al actualizar los datos: {e}", 500
 
-# Configuración del puerto
+# Configuração do puerto
 port = int(os.environ.get("PORT", 8080))
 if __name__ == "__main__":
     app.run(debug=True, host="0.0.0.0", port=port)
