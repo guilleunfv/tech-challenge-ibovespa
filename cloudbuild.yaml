@@ -1,6 +1,6 @@
 steps:
 - name: 'gcr.io/cloud-builders/docker'
-  args: ['build', '-t', 'us-central1-docker.pkg.dev/tech-challenge-ibovespa-new/ibovespa-repo/ibovespa-data-updater:latest', 'cloudrun/.'] # Cambiado a 'cloudrun/.'
+  args: ['build', '-t', 'us-central1-docker.pkg.dev/tech-challenge-ibovespa-new/ibovespa-repo/ibovespa-data-updater:latest', '.'] # Cambiado a '.'
 images:
 - 'us-central1-docker.pkg.dev/tech-challenge-ibovespa-new/ibovespa-repo/ibovespa-data-updater:latest'
 logsBucket: 'gs://ibovespa-data-updater-logs'
