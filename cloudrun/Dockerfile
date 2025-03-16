@@ -1,17 +1,25 @@
 FROM python:3.9-slim-buster
 
-# Este Dockerfile está configurado para desarrollo
-# Usa el servidor de desarrollo de Flask
-
+# Establecer el directorio de trabajo dentro del contenedor
 WORKDIR /app
 
+# Copiar el archivo de requerimientos
 COPY requirements.txt .
+
+# Instalar las dependencias de Python
 RUN pip install --no-cache-dir -r requirements.txt
 
+# Instalar Gunicorn
+RUN pip install gunicorn
+
+# Copiar el código de la aplicación
 COPY main.py .
 
+# Establecer la variable de entorno para el nombre del bucket
 ENV BUCKET_NAME=""
 
-CMD ["python", "main.py"]
+# Exponer el puerto 8080 para acceder a la aplicación
+EXPOSE 8080
 
-# Fin del Dockerfile
+# Ejecutar la aplicación Flask usando Gunicorn
+CMD ["gunicorn", "--bind", "0.0.0.0:8080", "main:app"]
