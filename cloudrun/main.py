@@ -83,3 +83,9 @@ def atualizar_dados_ibovespa():
     except Exception as e:
         logging.error(f"Erro durante a execução: {e}")
         return f"Erro ao atualizar os dados: {e}", 500
+
+# A linha abaixo deve ser removida para a produção.
+# O Gunicorn irá servir a aplicação.
+# port = int(os.environ.get("PORT", 8080))
+# if __name__ == "__main__":
+#    app.run(debug=True, host="0.0.0.0", port=port)
