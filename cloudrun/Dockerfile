@@ -4,7 +4,7 @@ FROM python:3.9-slim-buster
 WORKDIR /app
 
 # Copiar el archivo de requerimientos
-COPY requirements.txt .
+COPY cloudrun/requirements.txt .  # <--- ¡Cambio aquí!
 
 # Instalar las dependencias de Python
 RUN pip install --no-cache-dir -r requirements.txt
