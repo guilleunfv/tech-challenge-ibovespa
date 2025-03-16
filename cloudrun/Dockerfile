@@ -4,7 +4,7 @@ FROM python:3.9-slim-buster
 WORKDIR /app
 
 # Copiar el archivo de requerimientos
-COPY cloudrun/requirements.txt .  # <--- ¡Cambio aquí!
+COPY cloudrun/requirements.txt .
 
 # Instalar las dependencias de Python
 RUN pip install --no-cache-dir -r requirements.txt
@@ -13,7 +13,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 RUN pip install gunicorn
 
 # Copiar el código de la aplicación
-COPY main.py .
+COPY cloudrun/main.py .
 
 # Establecer la variable de entorno para el nombre del bucket
 ENV BUCKET_NAME=""
