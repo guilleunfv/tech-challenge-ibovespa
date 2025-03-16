@@ -1,6 +1,8 @@
 gunicorn
+pandas
 google-cloud-storage
 google-cloud-bigquery
 yfinance
-pandas
-Flask
+flask
+# Este archivo lista las dependencias de Python para el proyecto.
+# Se usa con el comando 'pip install -r requirements.txt'.
