@@ -2,11 +2,11 @@ steps:
 - name: 'gcr.io/cloud-builders/docker'
   args: [
     'build',
-    '-t', 'us-central1-docker.pkg.dev/tech-challenge-ibovespa-new/ibovespa-repo-new/ibovespa-data-updater:latest-nuevo',
+    '-t', 'us-central1-docker.pkg.dev/tech-challenge-ibovespa-new/ibovespa-repo-new/ibovespa-data-final:latest-nuevo',
     '-f', 'cloudrun/Dockerfile',  # Ruta al Dockerfile
     '.'  # Contexto de construcción
   ]
 images:
-- 'us-central1-docker.pkg.dev/tech-challenge-ibovespa-new/ibovespa-repo-new/ibovespa-data-updater:latest-nuevo'
+- 'us-central1-docker.pkg.dev/tech-challenge-ibovespa-new/ibovespa-repo-new/ibovespa-data-final:latest-nuevo'
 options:
   defaultLogsBucketBehavior: REGIONAL_USER_OWNED_BUCKET
