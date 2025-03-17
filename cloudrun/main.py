@@ -30,16 +30,23 @@ def atualizar_dados_ibovespa():
         client = bigquery.Client()
         logging.info("Conectado ao BigQuery.")
 
-        # --- Obtener datos de YFinance PRIMERO ---
+        # --- Obtener datos de YFinance  ---
         ticker = "^BVSP"
         logging.info(f"Baixando dados do ticker: {ticker}")
-        data = yf.download(ticker, period="1d", interval="1d") #Solo un dia para definir Schema
+        data = yf.download(ticker, period="10y", interval="1d", auto_adjust=True)  # auto_adjust=True
 
         if data.empty:
            logging.error("Não foi possível baixar dados do IBOVESPA.")
            return "Erro: Não foi possível baixar dados do IBOVESPA.", 500
 
-        data.reset_index(inplace=True)
+        # --- APLANAR EL MULTIINDEX DE COLUMNAS ---
+        data.columns = data.columns.droplevel(1)  # Elimina el segundo nivel ('^BVSP')
+        #Verificamos si el index es Datetime, y si no lo es, lo reseteamos.
+        if isinstance(data.index, pd.DatetimeIndex):
+            data = data.reset_index()
+        else:
+            data = data.reset_index(drop=True)
+
         # --- CREACIÓN DE TABLA (si no existe) ---
         try:
             # Intenta obtener la tabla.
@@ -52,10 +59,10 @@ def atualizar_dados_ibovespa():
             # --- Definir el esquema EXPLÍCITAMENTE ---
             schema = [
                 bigquery.SchemaField("Date", "DATE"),
-                bigquery.SchemaField("Open_Price", "FLOAT"),
-                bigquery.SchemaField("High_Price", "FLOAT"),
-                bigquery.SchemaField("Low_Price", "FLOAT"),
-                bigquery.SchemaField("Close_Price", "FLOAT"),
+                bigquery.SchemaField("Open", "FLOAT"),  # Usar nombres simples
+                bigquery.SchemaField("High", "FLOAT"),
+                bigquery.SchemaField("Low", "FLOAT"),
+                bigquery.SchemaField("Close", "FLOAT"),
                 bigquery.SchemaField("Volume", "INTEGER"),
             ]
 
@@ -63,55 +70,32 @@ def atualizar_dados_ibovespa():
             client.create_table(table)
             logging.info(f"Tabla {TABLE_URI} creada correctamente.")
         # --- FIN CREACIÓN DE TABLA ---
-
-        # --- AHORA descargamos los datos completos (10 años) ---
-        data = yf.download(ticker, period="10y", interval="1d")
-        if data.empty:
-            logging.error("Não foi possível baixar dados do IBOVESPA.")
-            return "Erro: Não foi possível baixar dados do IBOVESPA.", 500
-        data.reset_index(inplace=True)
-
-
-        # Filtrar y renomear colunas relevantes
-        df = data[["Date", "Open", "High", "Low", "Close", "Volume"]]
-        df = df.rename(columns={
-            "Date": "Date",
-            "Open": "Open_Price",
-            "High": "High_Price",
-            "Low": "Low_Price",
-            "Close": "Close_Price",
-            "Volume": "Volume"
-        })
-        df['Date'] = pd.to_datetime(df['Date']).dt.strftime('%Y-%m-%d')
+        # --- YA NO ES NECESARIO RENOMBRAR ---
 
         logging.info("Dados baixados e formatados corretamente.")
 
         # --- MANEJO DE VALORES FALTANTES ---
-        df = df.replace({(): None})  # Reemplaza tuplas vacías por None
-        df = df.fillna({
-            'Open_Price': 0.0,  # O el valor que consideres apropiado
-            'High_Price': 0.0,
-            'Low_Price': 0.0,
-            'Close_Price': 0.0,
+        data = data.replace({(): None})
+        data = data.fillna({
+            'Open': 0.0,
+            'High': 0.0,
+            'Low': 0.0,
+            'Close': 0.0,
             'Volume': 0,
         })
 
-        # Converter valores para tipos compatíveis com BigQuery
-        df = df.astype({
-            "Open_Price": float,
-            "High_Price": float,
-            "Low_Price": float,
-            "Close_Price": float,
+        # Converter valores para tipos compatíveis con BigQuery
+        data = data.astype({
+            "Open": float,
+            "High": float,
+            "Low": float,
+            "Close": float,
             "Volume": int
         })
-
-        # --- Depuración (opcional, puedes quitarla una vez que funcione) ---
-        #for col in df.columns:
-        #    print(f"Tipos de datos en la columna {col}: {df[col].apply(type).unique()}")
+        # --- YA NO ES NECESARIA LA DEPURACIÓN DEL BUCLE ---
 
         # Converter DataFrame para lista de dicionários
-        data_records = df.to_dict(orient='records')
-
+        data_records = data.to_dict(orient='records')
 
         # --- Inserción de datos ---
         table_ref = client.get_table(TABLE_URI)
