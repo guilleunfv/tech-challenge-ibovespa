@@ -8,3 +8,5 @@ steps:
   ]
 images:
 - 'us-central1-docker.pkg.dev/tech-challenge-ibovespa-new/ibovespa-repo/ibovespa-data-updater:latest-nuevo'
+options:
+  defaultLogsBucketBehavior: REGIONAL_USER_OWNED_BUCKET
