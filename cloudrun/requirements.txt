@@ -1,6 +1,5 @@
 gunicorn
 pandas
-google-cloud-storage
 google-cloud-bigquery
 yfinance
 flask
