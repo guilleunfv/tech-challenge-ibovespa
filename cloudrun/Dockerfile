@@ -1,22 +1,17 @@
-FROM python:3.9-slim-buster
+# Usa la imagen oficial de Python como base
+FROM python:3.9-slim
 
-# Establecer el directorio de trabajo dentro del contenedor
+# Establece el directorio de trabajo en /app
 WORKDIR /app
 
-# Copiar el archivo de requerimientos
-COPY cloudrun/requirements.txt .
+# Copia los archivos de requerimientos al contenedor
+COPY ./cloudrun/requirements.txt /app/requirements.txt
 
-# Instalar las dependencias de Python
+# Instala las dependencias
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Instalar Gunicorn
-RUN pip install gunicorn
+# Copia el código fuente al contenedor
+COPY ./cloudrun /app
 
-# Copiar el código de la aplicación
-COPY cloudrun/main.py .
-
-# Exponer el puerto 8080 para acceder a la aplicación
-EXPOSE 8080
-
-# Ejecutar la aplicación Flask usando Gunicorn
-CMD ["gunicorn", "--bind", "0.0.0.0:8080", "main:app"]
+# Define el comando para ejecutar la aplicación
+CMD exec gunicorn --bind :$PORT --workers 1 --threads 8 --timeout 0 main:app
