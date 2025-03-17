@@ -33,14 +33,17 @@ def atualizar_dados_ibovespa():
         # --- Obtener datos de YFinance  ---
         ticker = "^BVSP"
         logging.info(f"Baixando dados do ticker: {ticker}")
-        data = yf.download(ticker, period="10y", interval="1d", auto_adjust=True)  # auto_adjust=True
+        data = yf.download(ticker, period="10y", interval="1d")  # <--- SIN auto_adjust
 
         if data.empty:
            logging.error("Não foi possível baixar dados do IBOVESPA.")
            return "Erro: Não foi possível baixar dados do IBOVESPA.", 500
 
-        # --- APLANAR EL MULTIINDEX DE COLUMNAS ---
-        data.columns = data.columns.droplevel(1)  # Elimina el segundo nivel ('^BVSP')
+        # --- Imprimir el schema inicial ---
+        logging.info(f"Schema inicial del DataFrame:\n{data.dtypes}")
+        logging.info(f"Columnas inicial del DataFrame:\n{data.columns}")
+        logging.info(f"Index inicial del DataFrame:\n{data.index}")
+
         #Verificamos si el index es Datetime, y si no lo es, lo reseteamos.
         if isinstance(data.index, pd.DatetimeIndex):
             data = data.reset_index()
@@ -59,10 +62,11 @@ def atualizar_dados_ibovespa():
             # --- Definir el esquema EXPLÍCITAMENTE ---
             schema = [
                 bigquery.SchemaField("Date", "DATE"),
-                bigquery.SchemaField("Open", "FLOAT"),  # Usar nombres simples
+                bigquery.SchemaField("Open", "FLOAT"),
                 bigquery.SchemaField("High", "FLOAT"),
                 bigquery.SchemaField("Low", "FLOAT"),
                 bigquery.SchemaField("Close", "FLOAT"),
+                bigquery.SchemaField("Adj Close", "FLOAT"), #  <-  Añadimos Adj Close
                 bigquery.SchemaField("Volume", "INTEGER"),
             ]
 
@@ -70,8 +74,8 @@ def atualizar_dados_ibovespa():
             client.create_table(table)
             logging.info(f"Tabla {TABLE_URI} creada correctamente.")
         # --- FIN CREACIÓN DE TABLA ---
-        # --- YA NO ES NECESARIO RENOMBRAR ---
 
+        # --- YA NO ES NECESARIO RENOMBRAR ---
         logging.info("Dados baixados e formatados corretamente.")
 
         # --- MANEJO DE VALORES FALTANTES ---
@@ -81,8 +85,12 @@ def atualizar_dados_ibovespa():
             'High': 0.0,
             'Low': 0.0,
             'Close': 0.0,
+            'Adj Close': 0.0, #  <-  Añadimos Adj Close
             'Volume': 0,
         })
+
+        # ---Asegurar que los nombres de columna sean string---
+        data.columns = data.columns.astype(str)
 
         # Converter valores para tipos compatíveis con BigQuery
         data = data.astype({
@@ -90,9 +98,9 @@ def atualizar_dados_ibovespa():
             "High": float,
             "Low": float,
             "Close": float,
+            "Adj Close": float,  #  <-  Añadimos Adj Close
             "Volume": int
         })
-        # --- YA NO ES NECESARIA LA DEPURACIÓN DEL BUCLE ---
 
         # Converter DataFrame para lista de dicionários
         data_records = data.to_dict(orient='records')
