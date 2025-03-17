@@ -8,4 +8,3 @@ steps:
   ]
 images:
 - 'us-central1-docker.pkg.dev/tech-challenge-ibovespa-new/ibovespa-repo/ibovespa-data-updater:latest-nuevo'
-logsBucket: 'gs://ibovespa-data-updater-logs'
