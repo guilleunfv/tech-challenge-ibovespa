@@ -3,14 +3,12 @@ import yfinance as yf
 from google.cloud import bigquery
 import logging
 from datetime import datetime
-from flask import Flask
-import os
 
+from flask import Flask
 app = Flask(__name__)
 
 # Configura logging
-logging.basicConfig(level=logging.INFO,
-                    format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 @app.route("/", methods=['GET'])
 def atualizar_dados_ibovespa():
@@ -42,16 +40,14 @@ def atualizar_dados_ibovespa():
 
         data.reset_index(inplace=True)
 
-        # Extraer los datos
         df = data[["Date", "Open", "High", "Low", "Close", "Volume"]]
+        df['Date'] = pd.to_datetime(df['Date']).dt.strftime('%Y-%m-%d')
 
-        # Formato de Fecha
-        df['Date'] = pd.to_datetime(data['Date']).dt.strftime('%Y-%m-%d')
+        logging.info("Dados baixados e formatados corretamente.")
 
         # Inserir os dados no BigQuery
         data_records = df.to_dict(orient='records')
 
-        #Para solucionar los esquemas se convierte aca
         for row in data_records:
             row['Open'] = float(row['Open'])
             row['High'] = float(row['High'])
@@ -59,7 +55,7 @@ def atualizar_dados_ibovespa():
             row['Close'] = float(row['Close'])
             row['Volume'] = int(row['Volume'])
 
-        table = client.get_table(TABLE_URI)  # Use TABLE_URI aqui
+        table = client.get_table(TABLE_URI)
         errors = client.insert_rows(table, data_records)
         if errors == []:
             logging.info("Dados inseridos com sucesso no BigQuery.")
@@ -69,5 +65,5 @@ def atualizar_dados_ibovespa():
             return f"Ocorreram erros ao inserir dados no BigQuery: {errors}", 500
 
     except Exception as e:
-        logging.error(f"Erro durante a execução: {e}")
+        logging.error(f"Erro durante la ejecución: {e}")
         return f"Erro al actualizar los datos: {e}", 500
