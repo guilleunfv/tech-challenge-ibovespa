@@ -2,7 +2,7 @@ import pandas as pd
 import yfinance as yf
 from google.cloud import bigquery
 import logging
-from datetime import datetime
+import os  # Importante para obtener la variable de entorno PORT
 
 from flask import Flask
 
@@ -30,6 +30,25 @@ def atualizar_dados_ibovespa():
         client = bigquery.Client()
         logging.info("Conectado ao BigQuery.")
 
+        # --- CREACIÓN DE TABLA (si no existe) ---
+        try:
+            table = client.get_table(TABLE_URI)  # Intenta obtener la tabla
+            logging.info(f"La tabla {TABLE_URI} ya existe.")
+        except:  # Si la tabla no existe, la creamos
+            logging.info(f"Creando la tabla {TABLE_URI}...")
+            schema = [
+                bigquery.SchemaField("Date", "DATE"),
+                bigquery.SchemaField("Open_Price", "FLOAT"),
+                bigquery.SchemaField("High_Price", "FLOAT"),
+                bigquery.SchemaField("Low_Price", "FLOAT"),
+                bigquery.SchemaField("Close_Price", "FLOAT"),
+                bigquery.SchemaField("Volume", "INTEGER"),
+            ]
+            table = bigquery.Table(TABLE_URI, schema=schema)
+            table = client.create_table(table)
+            logging.info(f"Tabla {TABLE_URI} creada correctamente.")
+        # --- FIN CREACIÓN DE TABLA ---
+
         # Baixar dados do IBOVESPA usando yfinance
         ticker = "^BVSP"
         logging.info(f"Baixando dados do ticker: {ticker}")
@@ -44,16 +63,24 @@ def atualizar_dados_ibovespa():
 
         # Filtrar e renomear colunas relevantes
         df = data[["Date", "Open", "High", "Low", "Close", "Volume"]]
+        df = df.rename(columns={
+            "Date": "Date",
+            "Open": "Open_Price",
+            "High": "High_Price",
+            "Low": "Low_Price",
+            "Close": "Close_Price",
+            "Volume": "Volume"
+        })
         df['Date'] = pd.to_datetime(df['Date']).dt.strftime('%Y-%m-%d')  # Formatar datas como string
 
         logging.info("Dados baixados e formatados corretamente.")
 
         # Converter valores para tipos compatíveis com BigQuery
         df = df.astype({
-            "Open": float,
-            "High": float,
-            "Low": float,
-            "Close": float,
+            "Open_Price": float,
+            "High_Price": float,
+            "Low_Price": float,
+            "Close_Price": float,
             "Volume": int
         })
 
@@ -61,10 +88,10 @@ def atualizar_dados_ibovespa():
         data_records = df.to_dict(orient='records')
 
         # Obter referência da tabela no BigQuery
-        table = client.get_table(TABLE_URI)
+        # table = client.get_table(TABLE_URI) # YA NO ES NECESARIO, se crea o obtiene arriba
 
         # Inserir dados no BigQuery
-        errors = client.insert_rows(table, data_records)
+        errors = client.insert_rows(table, data_records)  # Usa la variable 'table'
         if not errors:
             logging.info("Dados inseridos com sucesso no BigQuery.")
             return "Dados inseridos com sucesso no BigQuery."
@@ -75,3 +102,7 @@ def atualizar_dados_ibovespa():
     except Exception as e:
         logging.error(f"Erro durante a execução: {e}")
         return f"Erro ao atualizar os dados: {e}", 500
+# Este if __name__ solo se ejecuta si corres el script directamente (python main.py).
+# No se ejecuta cuando Gunicorn (en Cloud Run) importa el módulo.
+if __name__ == "__main__":
+    app.run(debug=True, host="0.0.0.0", port=int(os.environ.get("PORT", 8080)))
