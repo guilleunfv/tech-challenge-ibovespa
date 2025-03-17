@@ -21,7 +21,7 @@ def atualizar_dados_ibovespa():
         logging.info("Iniciando a função atualizar_dados_ibovespa...")
 
         # Configurações do BigQuery
-        PROJECT_ID = "tech-challenge-ibovespa-new"  # Substitua pelo seu ID do projeto
+        PROJECT_ID = "tech-challenge-ibovespa-new"
         DATASET_ID = "ibovespa_dataset"
         TABLE_ID = "ibovespa_table"
         TABLE_URI = f"{PROJECT_ID}.{DATASET_ID}.{TABLE_ID}"
@@ -42,7 +42,7 @@ def atualizar_dados_ibovespa():
         data.reset_index(inplace=True)
         # --- CREACIÓN DE TABLA (si no existe) ---
         try:
-            # Intenta obtener la tabla.  Si existe, NO la tocamos.
+            # Intenta obtener la tabla.
             client.get_table(TABLE_URI)
             logging.info(f"La tabla {TABLE_URI} ya existe.")
         except:
@@ -51,7 +51,7 @@ def atualizar_dados_ibovespa():
 
             # --- Definir el esquema EXPLÍCITAMENTE ---
             schema = [
-                bigquery.SchemaField("Date", "DATE"),  # Siempre DATE
+                bigquery.SchemaField("Date", "DATE"),
                 bigquery.SchemaField("Open_Price", "FLOAT"),
                 bigquery.SchemaField("High_Price", "FLOAT"),
                 bigquery.SchemaField("Low_Price", "FLOAT"),
@@ -60,7 +60,7 @@ def atualizar_dados_ibovespa():
             ]
 
             table = bigquery.Table(TABLE_URI, schema=schema)
-            client.create_table(table)  # Crea la tabla
+            client.create_table(table)
             logging.info(f"Tabla {TABLE_URI} creada correctamente.")
         # --- FIN CREACIÓN DE TABLA ---
 
@@ -86,6 +86,16 @@ def atualizar_dados_ibovespa():
 
         logging.info("Dados baixados e formatados corretamente.")
 
+        # --- MANEJO DE VALORES FALTANTES ---
+        df = df.replace({(): None})  # Reemplaza tuplas vacías por None
+        df = df.fillna({
+            'Open_Price': 0.0,  # O el valor que consideres apropiado
+            'High_Price': 0.0,
+            'Low_Price': 0.0,
+            'Close_Price': 0.0,
+            'Volume': 0,
+        })
+
         # Converter valores para tipos compatíveis com BigQuery
         df = df.astype({
             "Open_Price": float,
@@ -95,25 +105,12 @@ def atualizar_dados_ibovespa():
             "Volume": int
         })
 
-        # --- Depuración DENTRO del bucle de conversión a diccionario ---
-        data_records = []
-        try:
-            for index, row in df.iterrows():
-                record = {}
-                for col_name in df.columns:
-                    try:
-                        record[col_name] = row[col_name]
-                    except Exception as e:
-                        logging.error(f"Error al procesar columna {col_name}: {e}")
-                        #  Imprimir informacion util para debuggear.
-                        logging.error(f"  Tipo de dato en la fila {index}, columna {col_name}: {type(row[col_name])}")
-                        logging.error(f"  Valor de la fila {index}, columna {col_name}: {row[col_name]}")
-                        return f"Error al procesar columna {col_name}: {e}", 500  # Salir si hay un error
-                data_records.append(record)
-                logging.info(f"Registro {index} procesado correctamente: {record}") #Log cada registro
-        except Exception as e:
-            logging.error(f"Error durante la conversión a diccionario: {e}")
-            return f"Error durante la conversión a diccionario: {e}", 500
+        # --- Depuración (opcional, puedes quitarla una vez que funcione) ---
+        #for col in df.columns:
+        #    print(f"Tipos de datos en la columna {col}: {df[col].apply(type).unique()}")
+
+        # Converter DataFrame para lista de dicionários
+        data_records = df.to_dict(orient='records')
 
 
         # --- Inserción de datos ---
