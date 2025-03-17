@@ -2,7 +2,7 @@ import pandas as pd
 import yfinance as yf
 from google.cloud import bigquery
 import logging
-import os  # Importante para obtener la variable de entorno PORT
+import os
 
 from flask import Flask
 
@@ -32,9 +32,11 @@ def atualizar_dados_ibovespa():
 
         # --- CREACIÓN DE TABLA (si no existe) ---
         try:
-            table = client.get_table(TABLE_URI)  # Intenta obtener la tabla
+            # Intenta obtener la tabla.  Si existe, NO la tocamos.
+            client.get_table(TABLE_URI)
             logging.info(f"La tabla {TABLE_URI} ya existe.")
-        except:  # Si la tabla no existe, la creamos
+        except:
+            # Si la tabla NO existe, la creamos.
             logging.info(f"Creando la tabla {TABLE_URI}...")
             schema = [
                 bigquery.SchemaField("Date", "DATE"),
@@ -45,7 +47,7 @@ def atualizar_dados_ibovespa():
                 bigquery.SchemaField("Volume", "INTEGER"),
             ]
             table = bigquery.Table(TABLE_URI, schema=schema)
-            table = client.create_table(table)
+            client.create_table(table)  # Crea la tabla
             logging.info(f"Tabla {TABLE_URI} creada correctamente.")
         # --- FIN CREACIÓN DE TABLA ---
 
@@ -71,7 +73,7 @@ def atualizar_dados_ibovespa():
             "Close": "Close_Price",
             "Volume": "Volume"
         })
-        df['Date'] = pd.to_datetime(df['Date']).dt.strftime('%Y-%m-%d')  # Formatar datas como string
+        df['Date'] = pd.to_datetime(df['Date']).dt.strftime('%Y-%m-%d')
 
         logging.info("Dados baixados e formatados corretamente.")
 
@@ -87,11 +89,9 @@ def atualizar_dados_ibovespa():
         # Converter DataFrame para lista de dicionários
         data_records = df.to_dict(orient='records')
 
-        # Obter referência da tabela no BigQuery
-        # table = client.get_table(TABLE_URI) # YA NO ES NECESARIO, se crea o obtiene arriba
-
-        # Inserir dados no BigQuery
-        errors = client.insert_rows(table, data_records)  # Usa la variable 'table'
+        # --- Inserción de datos (usando SIEMPRE la referencia a la tabla) ---
+        table_ref = client.get_table(TABLE_URI)  # Obtiene la referencia *actualizada*
+        errors = client.insert_rows(table_ref, data_records)  # Inserta
         if not errors:
             logging.info("Dados inseridos com sucesso no BigQuery.")
             return "Dados inseridos com sucesso no BigQuery."
@@ -102,7 +102,6 @@ def atualizar_dados_ibovespa():
     except Exception as e:
         logging.error(f"Erro durante a execução: {e}")
         return f"Erro ao atualizar os dados: {e}", 500
-# Este if __name__ solo se ejecuta si corres el script directamente (python main.py).
-# No se ejecuta cuando Gunicorn (en Cloud Run) importa el módulo.
+
 if __name__ == "__main__":
     app.run(debug=True, host="0.0.0.0", port=int(os.environ.get("PORT", 8080)))
