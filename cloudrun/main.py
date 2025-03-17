@@ -95,15 +95,30 @@ def atualizar_dados_ibovespa():
             "Volume": int
         })
 
-        # Converter DataFrame para lista de dicionários
-        data_records = df.to_dict(orient='records')
+        # --- Depuración DENTRO del bucle de conversión a diccionario ---
+        data_records = []
+        try:
+            for index, row in df.iterrows():
+                record = {}
+                for col_name in df.columns:
+                    try:
+                        record[col_name] = row[col_name]
+                    except Exception as e:
+                        logging.error(f"Error al procesar columna {col_name}: {e}")
+                        #  Imprimir informacion util para debuggear.
+                        logging.error(f"  Tipo de dato en la fila {index}, columna {col_name}: {type(row[col_name])}")
+                        logging.error(f"  Valor de la fila {index}, columna {col_name}: {row[col_name]}")
+                        return f"Error al procesar columna {col_name}: {e}", 500  # Salir si hay un error
+                data_records.append(record)
+                logging.info(f"Registro {index} procesado correctamente: {record}") #Log cada registro
+        except Exception as e:
+            logging.error(f"Error durante la conversión a diccionario: {e}")
+            return f"Error durante la conversión a diccionario: {e}", 500
 
-        # --- LÍNEA DE DEPURACIÓN ---
-        print(data_records)
 
-        # --- Inserción de datos (usando SIEMPRE la referencia a la tabla) ---
-        table_ref = client.get_table(TABLE_URI)  # Obtiene la referencia *actualizada*
-        errors = client.insert_rows(table_ref, data_records)  # Inserta
+        # --- Inserción de datos ---
+        table_ref = client.get_table(TABLE_URI)
+        errors = client.insert_rows(table_ref, data_records)
         if not errors:
             logging.info("Dados inseridos com sucesso no BigQuery.")
             return "Dados inseridos com sucesso no BigQuery."
