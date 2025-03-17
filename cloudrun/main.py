@@ -98,6 +98,9 @@ def atualizar_dados_ibovespa():
         # Converter DataFrame para lista de dicionários
         data_records = df.to_dict(orient='records')
 
+        # --- LÍNEA DE DEPURACIÓN ---
+        print(data_records)
+
         # --- Inserción de datos (usando SIEMPRE la referencia a la tabla) ---
         table_ref = client.get_table(TABLE_URI)  # Obtiene la referencia *actualizada*
         errors = client.insert_rows(table_ref, data_records)  # Inserta
