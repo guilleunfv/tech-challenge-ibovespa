@@ -101,7 +101,7 @@ def atualizar_dados_ibovespa():
         logging.info("Valores NaN rellenados.") # Punto de control
         logging.info(f"Schema después de fillna:\n{data.dtypes}")
 
-        # ---Asegurar que los nombres de columna sean string---
+        # ---Asegurar que los nobres de columna sean string---
         #Ya no es necesario, se maneja antes
 
         # Converter valores para tipos compatíveis con BigQuery
