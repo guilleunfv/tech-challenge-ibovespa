@@ -15,9 +15,6 @@ RUN pip install gunicorn
 # Copiar el código de la aplicación
 COPY cloudrun/main.py .
 
-# Establecer la variable de entorno para el nombre del bucket
-ENV BUCKET_NAME=""
-
 # Exponer el puerto 8080 para acceder a la aplicación
 EXPOSE 8080
 
