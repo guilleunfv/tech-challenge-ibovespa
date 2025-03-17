@@ -7,7 +7,7 @@ from flask import Flask
 
 app = Flask(__name__)
 
-# Configura logging
+# Configura logging GUARDE
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 @app.route("/", methods=['GET'])
