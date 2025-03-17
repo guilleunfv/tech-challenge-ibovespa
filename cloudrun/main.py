@@ -30,6 +30,16 @@ def atualizar_dados_ibovespa():
         client = bigquery.Client()
         logging.info("Conectado ao BigQuery.")
 
+        # --- Obtener datos de YFinance PRIMERO ---
+        ticker = "^BVSP"
+        logging.info(f"Baixando dados do ticker: {ticker}")
+        data = yf.download(ticker, period="1d", interval="1d") #Solo un dia para definir Schema
+
+        if data.empty:
+           logging.error("Não foi possível baixar dados do IBOVESPA.")
+           return "Erro: Não foi possível baixar dados do IBOVESPA.", 500
+
+        data.reset_index(inplace=True)
         # --- CREACIÓN DE TABLA (si no existe) ---
         try:
             # Intenta obtener la tabla.  Si existe, NO la tocamos.
@@ -38,32 +48,31 @@ def atualizar_dados_ibovespa():
         except:
             # Si la tabla NO existe, la creamos.
             logging.info(f"Creando la tabla {TABLE_URI}...")
+
+            # --- Definir el esquema EXPLÍCITAMENTE ---
             schema = [
-                bigquery.SchemaField("Date", "DATE"),
+                bigquery.SchemaField("Date", "DATE"),  # Siempre DATE
                 bigquery.SchemaField("Open_Price", "FLOAT"),
                 bigquery.SchemaField("High_Price", "FLOAT"),
                 bigquery.SchemaField("Low_Price", "FLOAT"),
                 bigquery.SchemaField("Close_Price", "FLOAT"),
                 bigquery.SchemaField("Volume", "INTEGER"),
             ]
+
             table = bigquery.Table(TABLE_URI, schema=schema)
             client.create_table(table)  # Crea la tabla
             logging.info(f"Tabla {TABLE_URI} creada correctamente.")
         # --- FIN CREACIÓN DE TABLA ---
 
-        # Baixar dados do IBOVESPA usando yfinance
-        ticker = "^BVSP"
-        logging.info(f"Baixando dados do ticker: {ticker}")
+        # --- AHORA descargamos los datos completos (10 años) ---
         data = yf.download(ticker, period="10y", interval="1d")
-
         if data.empty:
             logging.error("Não foi possível baixar dados do IBOVESPA.")
             return "Erro: Não foi possível baixar dados do IBOVESPA.", 500
-
-        # Resetar índice para transformar o índice de datas em uma coluna
         data.reset_index(inplace=True)
 
-        # Filtrar e renomear colunas relevantes
+
+        # Filtrar y renomear colunas relevantes
         df = data[["Date", "Open", "High", "Low", "Close", "Volume"]]
         df = df.rename(columns={
             "Date": "Date",
